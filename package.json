@@ -1,0 +1,15 @@
+﻿{
+  "name": "sistema-camping",
+  "version": "1.0.0",
+  "description": "API REST simples para sistema de camping",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sequelize": "^6.37.1",
+    "pg": "^8.11.3"
+  }
+}
