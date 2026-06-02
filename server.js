@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import sequelize from './database.js';
 import tiposAreaRoutes from './routes/tiposArea.js';
 import reservasRoutes from './routes/reservas.js';
@@ -9,6 +9,7 @@ import './models/Reserva.js';
 const app = express();
 
 app.use(express.json());
+app.use(express.static('public'));
 
 app.get('/', (req, res) => {
   res.json({
