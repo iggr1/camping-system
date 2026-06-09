@@ -253,7 +253,7 @@ function App() {
     { className: 'container' },
     React.createElement('header', { className: 'topo' },
       React.createElement('h1', null, 'Sistema de Camping'),
-      React.createElement('p', null, 'Frontend simples em React consumindo a API REST local.')
+      React.createElement('p', null, 'Cadastro de áreas, reservas e gerenciamento de clientes.')
     ),
 
     mensagem && React.createElement('div', { className: 'mensagem' }, mensagem),
