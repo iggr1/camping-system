@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import { Op } from 'sequelize';
 const router = express.Router();
 
@@ -17,6 +17,35 @@ function calcularDiarias(dataEntrada, dataSaida) {
   }
 
   return diarias;
+}
+
+
+function normalizarTaxasMultas(corpo) {
+  const valorTaxasMultas = Number(corpo.valorTaxasMultas || 0);
+  const justificativaTaxasMultas = (corpo.justificativaTaxasMultas || '').trim();
+
+  if (Number.isNaN(valorTaxasMultas) || valorTaxasMultas < 0) {
+    throw new Error('Informe um valor válido para taxas ou multas');
+  }
+
+  if (valorTaxasMultas > 0 && !justificativaTaxasMultas) {
+    throw new Error('Informe a justificativa das taxas ou multas');
+  }
+
+  return {
+    valorTaxasMultas,
+    justificativaTaxasMultas: valorTaxasMultas > 0 ? justificativaTaxasMultas : ''
+  };
+}
+
+function calcularValoresReserva(diarias, valorDiaria, valorTaxasMultas = 0) {
+  const valorDiarias = diarias * valorDiaria;
+  const valorTotal = valorDiarias + valorTaxasMultas;
+
+  return {
+    valorDiarias,
+    valorTotal
+  };
 }
 
 async function existeReservaNoPeriodo(TipoAreaId, dataEntrada, dataSaida, reservaId = null) {
@@ -62,7 +91,12 @@ router.post('/', async (req, res) => {
     }
 
     const diarias = calcularDiarias(req.body.dataEntrada, req.body.dataSaida);
-    const valorTotal = diarias * tipoArea.valorDiaria;
+    const { valorTaxasMultas, justificativaTaxasMultas } = normalizarTaxasMultas(req.body);
+    const { valorDiarias, valorTotal } = calcularValoresReserva(
+      diarias,
+      tipoArea.valorDiaria,
+      valorTaxasMultas
+    );
 
     const reserva = await Reserva.create({
       nomeCliente: req.body.nomeCliente,
@@ -70,12 +104,15 @@ router.post('/', async (req, res) => {
       dataSaida: req.body.dataSaida,
       TipoAreaId: req.body.TipoAreaId,
       diarias,
+      valorDiarias,
+      valorTaxasMultas,
+      justificativaTaxasMultas,
       valorTotal
     });
 
     res.status(201).json(reserva);
   } catch (error) {
-    res.status(400).json({ erro: 'Erro ao cadastrar reserva' });
+    res.status(400).json({ erro: error.message || 'Erro ao cadastrar reserva' });
   }
 });
 
@@ -125,19 +162,61 @@ router.put('/:id', async (req, res) => {
     });
   }
 
-  const diarias = calcularDiarias(req.body.dataEntrada, req.body.dataSaida);
-  const valorTotal = diarias * tipoArea.valorDiaria;
+  try {
+    const diarias = calcularDiarias(req.body.dataEntrada, req.body.dataSaida);
+    const { valorTaxasMultas, justificativaTaxasMultas } = normalizarTaxasMultas(req.body);
+    const { valorDiarias, valorTotal } = calcularValoresReserva(
+      diarias,
+      tipoArea.valorDiaria,
+      valorTaxasMultas
+    );
 
-  await reserva.update({
-    nomeCliente: req.body.nomeCliente,
-    dataEntrada: req.body.dataEntrada,
-    dataSaida: req.body.dataSaida,
-    TipoAreaId: req.body.TipoAreaId,
-    diarias,
-    valorTotal
+    await reserva.update({
+      nomeCliente: req.body.nomeCliente,
+      dataEntrada: req.body.dataEntrada,
+      dataSaida: req.body.dataSaida,
+      TipoAreaId: req.body.TipoAreaId,
+      diarias,
+      valorDiarias,
+      valorTaxasMultas,
+      justificativaTaxasMultas,
+      valorTotal
+    });
+
+    res.json(reserva);
+  } catch (error) {
+    res.status(400).json({ erro: error.message || 'Erro ao atualizar reserva' });
+  }
+});
+
+router.patch('/:id/taxas-multas', async (req, res) => {
+  const reserva = await Reserva.findByPk(req.params.id, {
+    include: TipoArea
   });
 
-  res.json(reserva);
+  if (!reserva) {
+    return res.status(404).json({ erro: 'Reserva não encontrada' });
+  }
+
+  try {
+    const { valorTaxasMultas, justificativaTaxasMultas } = normalizarTaxasMultas(req.body);
+    const { valorDiarias, valorTotal } = calcularValoresReserva(
+      reserva.diarias,
+      reserva.TipoArea.valorDiaria,
+      valorTaxasMultas
+    );
+
+    await reserva.update({
+      valorDiarias,
+      valorTaxasMultas,
+      justificativaTaxasMultas,
+      valorTotal
+    });
+
+    res.json(reserva);
+  } catch (error) {
+    res.status(400).json({ erro: error.message || 'Erro ao atualizar taxas ou multas' });
+  }
 });
 
 router.delete('/:id', async (req, res) => {

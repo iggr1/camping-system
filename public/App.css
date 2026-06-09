@@ -87,12 +87,29 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   border: 1px solid #b7c5ae;
   border-radius: 6px;
   padding: 10px;
   font-size: 15px;
   background: white;
+}
+
+textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.acoes-reserva {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.justificativa {
+  min-width: 180px;
+  white-space: pre-wrap;
 }
 
 button {
