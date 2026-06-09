@@ -10,7 +10,9 @@ function App() {
     nomeCliente: '',
     dataEntrada: '',
     dataSaida: '',
-    TipoAreaId: ''
+    TipoAreaId: '',
+    valorTaxasMultas: '',
+    justificativaTaxasMultas: ''
   });
   const [mensagem, setMensagem] = useState('');
   const [carregando, setCarregando] = useState(false);
@@ -128,7 +130,9 @@ function App() {
           nomeCliente: reservaForm.nomeCliente,
           dataEntrada: reservaForm.dataEntrada,
           dataSaida: reservaForm.dataSaida,
-          TipoAreaId: Number(reservaForm.TipoAreaId)
+          TipoAreaId: Number(reservaForm.TipoAreaId),
+          valorTaxasMultas: Number(reservaForm.valorTaxasMultas || 0),
+          justificativaTaxasMultas: reservaForm.justificativaTaxasMultas
         })
       });
 
@@ -141,12 +145,66 @@ function App() {
         nomeCliente: '',
         dataEntrada: '',
         dataSaida: '',
-        TipoAreaId: tiposArea.length > 0 ? String(tiposArea[0].id) : ''
+        TipoAreaId: tiposArea.length > 0 ? String(tiposArea[0].id) : '',
+        valorTaxasMultas: '',
+        justificativaTaxasMultas: ''
       });
       await carregarDados(false);
       setMensagem('Reserva cadastrada com sucesso!');
     } catch (error) {
       setMensagem(error.message || 'Erro ao cadastrar reserva. Confira os campos e tente novamente.');
+    }
+  }
+
+  async function atualizarTaxasMultas(reserva) {
+    const valorAtual = Number(reserva.valorTaxasMultas || 0).toFixed(2);
+    const novoValor = window.prompt('Valor das taxas ou multas da reserva:', valorAtual);
+
+    if (novoValor === null) {
+      return;
+    }
+
+    const valorTaxasMultas = Number(novoValor.replace(',', '.'));
+
+    if (Number.isNaN(valorTaxasMultas) || valorTaxasMultas < 0) {
+      setMensagem('Informe um valor válido para taxas ou multas.');
+      return;
+    }
+
+    let justificativaTaxasMultas = '';
+
+    if (valorTaxasMultas > 0) {
+      justificativaTaxasMultas = window.prompt(
+        'Justificativa das taxas ou multas:',
+        reserva.justificativaTaxasMultas || ''
+      );
+
+      if (justificativaTaxasMultas === null) {
+        return;
+      }
+    }
+
+    setMensagem('');
+
+    try {
+      const resposta = await fetch(`${API_URL}/reservas/${reserva.id}/taxas-multas`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          valorTaxasMultas,
+          justificativaTaxasMultas
+        })
+      });
+
+      if (!resposta.ok) {
+        const erro = await resposta.json().catch(() => ({}));
+        throw new Error(erro.erro || 'Erro ao atualizar taxas ou multas.');
+      }
+
+      await carregarDados(false);
+      setMensagem('Taxas ou multas da reserva atualizadas com sucesso!');
+    } catch (error) {
+      setMensagem(error.message || 'Erro ao atualizar taxas ou multas. Tente novamente.');
     }
   }
 
@@ -310,6 +368,27 @@ function App() {
               ))
             )
           ),
+          React.createElement('label', null, 'Taxas ou multas (opcional)',
+            React.createElement('input', {
+              type: 'number',
+              name: 'valorTaxasMultas',
+              value: reservaForm.valorTaxasMultas,
+              onChange: atualizarReservaForm,
+              placeholder: 'Ex: 50.00',
+              min: '0',
+              step: '0.01'
+            })
+          ),
+          React.createElement('label', null, 'Justificativa das taxas ou multas',
+            React.createElement('textarea', {
+              name: 'justificativaTaxasMultas',
+              value: reservaForm.justificativaTaxasMultas,
+              onChange: atualizarReservaForm,
+              placeholder: 'Descreva o motivo da cobrança adicional',
+              rows: 3,
+              required: Number(reservaForm.valorTaxasMultas || 0) > 0
+            })
+          ),
           React.createElement('button', { type: 'submit', disabled: tiposArea.length === 0 }, 'Salvar reserva')
         )
       ),
@@ -326,6 +405,9 @@ function App() {
                   React.createElement('th', null, 'Saída'),
                   React.createElement('th', null, 'Tipo de área'),
                   React.createElement('th', null, 'Diárias'),
+                  React.createElement('th', null, 'Valor diárias'),
+                  React.createElement('th', null, 'Taxas/Multas'),
+                  React.createElement('th', null, 'Justificativa'),
                   React.createElement('th', null, 'Valor total'),
                   React.createElement('th', null, 'Ações')
                 )
@@ -337,8 +419,15 @@ function App() {
                   React.createElement('td', null, formatarData(reserva.dataSaida)),
                   React.createElement('td', null, reserva.TipoArea ? reserva.TipoArea.nome : '-'),
                   React.createElement('td', null, reserva.diarias),
+                  React.createElement('td', null, formatarMoeda(reserva.valorDiarias || (reserva.valorTotal - (reserva.valorTaxasMultas || 0)))),
+                  React.createElement('td', null, formatarMoeda(reserva.valorTaxasMultas)),
+                  React.createElement('td', { className: 'justificativa' }, reserva.justificativaTaxasMultas || '-'),
                   React.createElement('td', null, formatarMoeda(reserva.valorTotal)),
-                  React.createElement('td', null,
+                  React.createElement('td', { className: 'acoes-reserva' },
+                    React.createElement('button', {
+                      type: 'button',
+                      onClick: () => atualizarTaxasMultas(reserva)
+                    }, 'Taxa/Multa'),
                     React.createElement('button', {
                       type: 'button',
                       className: 'botao-excluir',

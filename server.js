@@ -21,7 +21,7 @@ app.use('/tipos-area', tiposAreaRoutes);
 
 app.use('/reservas', reservasRoutes);
 
-sequelize.sync().then(() => {
+sequelize.sync({ alter: true }).then(() => {
   app.listen(3000, () => {
     console.log('API Rodando em http://localhost:3000');
   });
